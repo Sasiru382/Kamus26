@@ -1,21 +1,20 @@
 using System;
-using System.Threading.Tasks;
-using Microsoft.IdentityModel.Clients.ActiveDirectory;
+using Azure.Core;
+using Azure.Identity;
+using Microsoft.Extensions.Configuration;
 
 namespace integration
 {
     public static class Utils
     {
-        public static async Task<string> AuthenticationCallback(string clientId, string clientSecret, string authority, string resource, string scope)
+        public static TokenCredential CreateAzureCredential(IConfiguration configuration)
         {
-            var authContext = new AuthenticationContext(authority);
-            var clientCred = new ClientCredential(clientId, clientSecret);
-            var result = await authContext.AcquireTokenAsync(resource, clientCred);
-
-            if (result == null)
-                throw new InvalidOperationException("Failed to obtain the JWT token");
-
-            return result.AccessToken;
+            var tenantId = configuration["ActiveDirectory:TenantId"];
+            var clientId = configuration["ActiveDirectory:ClientId"];
+            var secret = configuration["ActiveDirectory:ClientSecret"];
+            return !string.IsNullOrEmpty(tenantId) && !string.IsNullOrEmpty(clientId) && !string.IsNullOrEmpty(secret)
+                ? new ClientSecretCredential(tenantId, clientId, secret)
+                : new DefaultAzureCredential();
         }
     }
 }

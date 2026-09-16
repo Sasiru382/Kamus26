@@ -78,6 +78,45 @@ And now deploy Kamus using the following helm command:
 helm upgrade --install kamus soluto/kamus -f <path/to/values.yaml>
 ```
 
+#### Azure credentials and health checks
+
+The APIs now run on .NET 8. Build either container with the root Dockerfile and
+`--build-arg PROJECT_NAME=encrypt-api` or `--build-arg PROJECT_NAME=decrypt-api`.
+The shared library retains its .NET Standard 2.1 target for existing consumers.
+
+Azure resilience is enabled by default. Set
+`KeyManagement__KeyVault__ResilientMode=false` to use the standard provider with
+bounded client caching and operation timeouts, without background recovery.
+The resilient provider checks connectivity every 30 seconds and recreates its
+credential after three consecutive failures or a timeout, subject to a five-minute
+cooldown from the last credential creation (including startup).
+
+For AKS Workload Identity, configure the deployment to supply `AZURE_CLIENT_ID`,
+`AZURE_TENANT_ID`, and `AZURE_FEDERATED_TOKEN_FILE`, with a readable projected token
+file. Resilient mode selects `WorkloadIdentityCredential` directly when all three
+are present. Otherwise, it uses the configured service principal, then
+`DefaultAzureCredential`. `ActiveDirectory__ManagedIdentityClientId` supplies the
+user-assigned managed identity hint for the default credential chain.
+
+Service-principal deployments must supply all three application settings:
+`ActiveDirectory__TenantId`, `ActiveDirectory__ClientId`, and
+`ActiveDirectory__ClientSecret`. The tenant ID is required when upgrading from
+the legacy Azure client. Standard mode selects the default credential chain when
+a managed identity hint is configured; otherwise it selects a complete service
+principal configuration, then the default chain.
+
+`GET /api/v1/isAlive` on the encryptor now checks Key Vault and returns HTTP 503 on
+failure. Its five-second probe enumerates keys, so the identity needs **list**
+permission as well as the existing encryption permissions. Allow more than five
+seconds in the deployment's probe timeout and choose failure thresholds suitable
+for transient outages. The decryptor's liveness check still checks Kubernetes
+access. AWS, Google KMS, and AES connectivity checks are currently no-ops.
+
+Deployment-side Workload Identity wiring and the optional debug fault endpoints
+are not included in this change. Before rollout, verify an encrypt/decrypt round
+trip in both Azure modes, Workload Identity authentication, and HTTP 503 when
+Key Vault is unreachable.
+
 ### Google Cloud KMS
 Using [Google Cloud KMS](https://cloud.google.com/kms/) as the key managment solution is the secure solution when running a cluster on Google Cloud.
 For a more secure installation, it is recommended to use a keys that are HSM-protected (see [Cloud HSM](https://cloud.google.com/kms/docs/hsm) documentation). Before using Google Cloud KMS, make sure the api is [enabled](https://console.cloud.google.com/flows/enableapi?apiid=cloudkms.googleapis.com&redirect=https://console.cloud.google.com&_ga=2.90411866.-1791338329.1542008700).

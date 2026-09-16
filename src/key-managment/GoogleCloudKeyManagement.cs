@@ -37,6 +37,8 @@ namespace Kamus.KeyManagement
         }
 
 
+        public Task VerifyConnectivity() => Task.CompletedTask;
+
         public async Task<string> Decrypt(string encryptedData, string serviceAccountId)
         {
             var safeId = KeyIdCreator.Create(serviceAccountId);

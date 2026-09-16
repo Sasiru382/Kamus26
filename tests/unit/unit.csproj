@@ -1,14 +1,18 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\key-managment\key-managment.csproj" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <Compile Include="..\..\src\encrypt-api\Controllers\MonitoringController.cs" Link="Api\MonitoringController.cs" />
+    <Compile Include="..\..\src\decrypt-api\ErrorHandlingMiddleware.cs" Link="Api\ErrorHandlingMiddleware.cs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="xunit" Version="2.3.1" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.3.1" />
-    <DotNetCliToolReference Include="dotnet-xunit" Version="2.3.1" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="JunitXml.TestLogger" Version="4.0.254" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
   </ItemGroup>
 </Project>

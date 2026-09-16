@@ -1,4 +1,5 @@
-FROM mcr.microsoft.com/dotnet/core/sdk:3.1 AS build-env
+# Build either API with --build-arg PROJECT_NAME=encrypt-api or decrypt-api.
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build-env
 
 ARG PROJECT_NAME=decrypt-api
 
@@ -6,7 +7,7 @@ WORKDIR /app
 
 # Copy csproj and restore as distinct layers
 COPY  ./src/$PROJECT_NAME/$PROJECT_NAME.csproj ./$PROJECT_NAME/$PROJECT_NAME.csproj
-COPY ./src/key-managment/key-managment.csproj ./key-managment/key-managment.csproj 
+COPY ./src/key-managment/key-managment.csproj ./key-managment/key-managment.csproj
 RUN dotnet restore $PROJECT_NAME/$PROJECT_NAME.csproj
 
 # Copy everything else and build
@@ -15,7 +16,7 @@ COPY  ./src/key-managment ./key-managment
 RUN dotnet publish $PROJECT_NAME/$PROJECT_NAME.csproj -c Release -o ./obj/Docker/publish
 
 # Build runtime image
-FROM mcr.microsoft.com/dotnet/core/aspnet:3.1-buster-slim AS release
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS release
 ARG PROJECT_NAME=decrypt-api
 ENV PROJECT_NAME_ENV=$PROJECT_NAME
 RUN groupadd dotnet && \

@@ -1,11 +1,10 @@
-﻿using System;
+using System;
 using System.Net;
 using System.Threading.Tasks;
 using System.Linq;
 using Kamus.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Rest;
 using Kamus.Extensions;
 using Kamus.KeyManagement;
 using Serilog;

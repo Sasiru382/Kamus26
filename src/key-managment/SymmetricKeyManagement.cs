@@ -12,13 +12,15 @@ namespace Kamus.KeyManagement
         private readonly byte[] mKey;
         private readonly bool mUseKeyDerivation;
         private const int derivedKeySize = 32;
-        
+
         public SymmetricKeyManagement(byte[] key, bool useKeyDerivation)
         {
             mKey = key;
             mUseKeyDerivation = useKeyDerivation;
         }
-        
+
+        public Task VerifyConnectivity() => Task.CompletedTask;
+
         public Task<string> Decrypt(string encryptedData, string serviceAccountId)
         {
             var splitted = encryptedData.Split(':');
@@ -29,20 +31,42 @@ namespace Kamus.KeyManagement
             var iv = Convert.FromBase64String(splitted[0]);
             var data = Convert.FromBase64String(splitted[1]);
 
-            var key = mUseKeyDerivation ? DeriveKey(serviceAccountId) : mKey;
-
-            var result = RijndaelUtils.Decrypt(key, iv, data);
-
-            return Task.FromResult(Encoding.UTF8.GetString(result));
+            // FIX: Use derived key in a try-finally to ensure it's cleared from memory
+            byte[]? derivedKey = null;
+            try
+            {
+                var key = mUseKeyDerivation ? (derivedKey = DeriveKey(serviceAccountId)) : mKey;
+                var result = RijndaelUtils.Decrypt(key, iv, data);
+                return Task.FromResult(Encoding.UTF8.GetString(result));
+            }
+            finally
+            {
+                // FIX: Clear derived key from memory after use
+                if (derivedKey != null)
+                {
+                    Array.Clear(derivedKey, 0, derivedKey.Length);
+                }
+            }
         }
 
         public Task<string> Encrypt(string data, string serviceAccountId, bool createKeyIfMissing = true)
         {
-            var key = mUseKeyDerivation ? DeriveKey(serviceAccountId) : mKey;
-
-            var (decryptedData, iv) = RijndaelUtils.Encrypt(key, Encoding.UTF8.GetBytes(data));
-
-            return Task.FromResult(Convert.ToBase64String(iv) + ":" + Convert.ToBase64String(decryptedData));
+            // FIX: Use derived key in a try-finally to ensure it's cleared from memory
+            byte[]? derivedKey = null;
+            try
+            {
+                var key = mUseKeyDerivation ? (derivedKey = DeriveKey(serviceAccountId)) : mKey;
+                var (encryptedData, iv) = RijndaelUtils.Encrypt(key, Encoding.UTF8.GetBytes(data));
+                return Task.FromResult(Convert.ToBase64String(iv) + ":" + Convert.ToBase64String(encryptedData));
+            }
+            finally
+            {
+                // FIX: Clear derived key from memory after use
+                if (derivedKey != null)
+                {
+                    Array.Clear(derivedKey, 0, derivedKey.Length);
+                }
+            }
         }
 
         private byte[] DeriveKey(string serviceAccountId)

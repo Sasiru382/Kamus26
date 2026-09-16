@@ -3,7 +3,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Kamus.KeyManagement;
-using Microsoft.Azure.KeyVault;
+using Azure.Security.KeyVault.Keys;
 using Microsoft.Extensions.Configuration;
 using Xunit;
 
@@ -13,7 +13,7 @@ namespace integration
     {
         private IKeyManagement mDecorator;
         private readonly IConfiguration mConfiguration;
-        
+
         public EnvelopeDecoratorIntegrationTests()
         {
             mConfiguration = new ConfigurationBuilder().AddJsonFile("settings.json").AddEnvironmentVariables().Build();
@@ -22,12 +22,11 @@ namespace integration
 
         private void InitializeKeyManagement()
         {
-            var clientId = mConfiguration.GetValue<string>("ActiveDirectory:ClientId");
-            var clientSecret = mConfiguration.GetValue<string>("ActiveDirectory:ClientSecret");
-            var keyVaultClient = new KeyVaultClient(((authority, resource, scope) => 
-                Utils.AuthenticationCallback(clientId, clientSecret, authority, resource, scope)));
-            var keyVaultManagement = new AzureKeyVaultKeyManagement(keyVaultClient, mConfiguration);
-            mDecorator = new EnvelopeEncryptionDecorator(keyVaultManagement, 15);        
+            var credential = Utils.CreateAzureCredential(mConfiguration);
+            var vaultName = mConfiguration["KeyManagement:KeyVault:Name"];
+            var keyVaultClient = new KeyClient(new Uri($"https://{vaultName}.vault.azure.net"), credential);
+            var keyVaultManagement = new AzureKeyVaultKeyManagement(keyVaultClient, credential, mConfiguration);
+            mDecorator = new EnvelopeEncryptionDecorator(keyVaultManagement, 15);
         }
 
         [Fact]
@@ -55,9 +54,9 @@ namespace integration
             var randomString = new string('*', 16);
             var encryptedData = await mDecorator.Encrypt(randomString, "a-service-account");
             Assert.Contains("env$", encryptedData);
-                            
+
             var decryptedString = await mDecorator.Decrypt(encryptedData, "a-service-account");
-            
+
             Assert.Equal(randomString, decryptedString);
         }
 

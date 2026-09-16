@@ -7,8 +7,8 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Kamus.KeyManagement;
 using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Azure.KeyVault;
-using Microsoft.Azure.KeyVault.Models;
+using Azure;
+using Azure.Security.KeyVault.Keys;
 using Microsoft.Extensions.Configuration;
 using Xunit;
 
@@ -17,7 +17,7 @@ namespace integration
     public class AzureKeyVaultIntegrationTests
     {
         private IKeyManagement mAzureKeyManagement;
-        private IKeyVaultClient mKeyVaultClient;
+        private KeyClient mKeyVaultClient;
         private readonly IConfiguration mConfiguration;
         private readonly string mKeyVaultName;
         public AzureKeyVaultIntegrationTests()
@@ -29,34 +29,32 @@ namespace integration
 
         private void InitializeKeyManagement()
         {
-            var clientId = mConfiguration.GetValue<string>("ActiveDirectory:ClientId");
-            var clientSecret = mConfiguration.GetValue<string>("ActiveDirectory:ClientSecret");
-            mKeyVaultClient = new KeyVaultClient((authority, resource, scope) => 
-                Utils.AuthenticationCallback(clientId, clientSecret, authority, resource, scope));
-            mAzureKeyManagement = new AzureKeyVaultKeyManagement(mKeyVaultClient, mConfiguration);
+            var credential = Utils.CreateAzureCredential(mConfiguration);
+            mKeyVaultClient = new KeyClient(new Uri($"https://{mKeyVaultName}.vault.azure.net"), credential);
+            mAzureKeyManagement = new AzureKeyVaultKeyManagement(mKeyVaultClient, credential, mConfiguration);
         }
-        
+
         [Fact]
         public async Task Encrypt_KeyDoesNotExist_CreateIt()
         {
             var data = "test";
             var serviceAccountId = "default:" + Guid.NewGuid();
-            
+
             await mAzureKeyManagement.Encrypt(data, serviceAccountId);
-            
+
             var keyId = $"https://{mKeyVaultName}.vault.azure.net/keys/{ComputeKeyId(serviceAccountId)}";
 
             try
             {
-                await mKeyVaultClient.GetKeyAsync(keyId);
+                await mKeyVaultClient.GetKeyAsync(ComputeKeyId(serviceAccountId));
             }
-            catch (KeyVaultErrorException e) when (e.Response.StatusCode == HttpStatusCode.NotFound)
+            catch (RequestFailedException e) when (e.Status == 404)
             {
                 throw new Exception("New key was not created in the key vault");
             }
             finally // clean up
             {
-                await mKeyVaultClient.DeleteKeyAsync($"https://{mKeyVaultName}.vault.azure.net", ComputeKeyId(serviceAccountId));
+                await mKeyVaultClient.StartDeleteKeyAsync(ComputeKeyId(serviceAccountId));
             }
         }
 
@@ -68,7 +66,7 @@ namespace integration
             var serviceAccountId = "default:default:";
 
             var encryptedData = await mAzureKeyManagement.Encrypt(data, serviceAccountId);
-            
+
             var decryptedData = await mAzureKeyManagement.Decrypt(encryptedData, serviceAccountId);
 
             Assert.Equal(data, decryptedData);
@@ -86,7 +84,7 @@ namespace integration
 
             Assert.Equal(data, decryptedData);
         }
-        
+
         [Fact]
         public async Task DecryptWithDifferentSAFails()
         {
@@ -94,7 +92,7 @@ namespace integration
             var sa2 = "sa2:namespace";
             var data = "data";
             var encrypted = await mAzureKeyManagement.Encrypt(data, sa);
-            
+
             // To make sure the key does exist
             await mAzureKeyManagement.Encrypt(data, sa2);
             // ===============================
@@ -102,7 +100,7 @@ namespace integration
         }
         private string ComputeKeyId(string serviceUserName)
         {
-            return 
+            return
                 WebEncoders.Base64UrlEncode(
                         SHA256.Create().ComputeHash(
                             Encoding.UTF8.GetBytes(serviceUserName)))

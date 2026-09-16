@@ -18,24 +18,32 @@ namespace Kamus.KeyManagement
         private readonly bool mEnableAutomaticKeyRotation;
 
         public AwsKeyManagement(
-            IAmazonKeyManagementService amazonKeyManagementService, 
+            IAmazonKeyManagementService amazonKeyManagementService,
             string cmkPrefix,
             bool enableAutomaticKeyRotation)
         {
             mAmazonKeyManagementService = amazonKeyManagementService;
-            mCmkPrefix = string.IsNullOrEmpty(cmkPrefix) ? "" : $"{cmkPrefix}-"; 
+            mCmkPrefix = string.IsNullOrEmpty(cmkPrefix) ? "" : $"{cmkPrefix}-";
             mEnableAutomaticKeyRotation = enableAutomaticKeyRotation;
         }
+
+        public Task VerifyConnectivity() => Task.CompletedTask;
 
         public async Task<string> Encrypt(string data, string serviceAccountId, bool createKeyIfMissing = true)
         {
             var masterKeyAlias = $"alias/{mCmkPrefix}kamus/{KeyIdCreator.Create(serviceAccountId)}";
             var (dataKey, encryptedDataKey) = await GenerateEncryptionKey(masterKeyAlias);
 
-            var (encryptedData, iv) = RijndaelUtils.Encrypt(dataKey.ToArray(), Encoding.UTF8.GetBytes(data));
-
-            return EnvelopeEncryptionUtils.Wrap(encryptedDataKey, iv, encryptedData);
-
+            try
+            {
+                var (encryptedData, iv) = RijndaelUtils.Encrypt(dataKey, Encoding.UTF8.GetBytes(data));
+                return EnvelopeEncryptionUtils.Wrap(encryptedDataKey, iv, encryptedData);
+            }
+            finally
+            {
+                // FIX: Clear sensitive data from memory
+                Array.Clear(dataKey, 0, dataKey.Length);
+            }
         }
 
         public async Task<string> Decrypt(string encryptedData, string serviceAccountId)
@@ -45,38 +53,77 @@ namespace Kamus.KeyManagement
             var (encryptedDataKey, iv, actualEncryptedData) = tuple;
 
             var masterKeyAlias = $"alias/{mCmkPrefix}kamus/{KeyIdCreator.Create(serviceAccountId)}";
+
+            // FIX: Properly dispose MemoryStream using 'using' statement
+            using var ciphertextStream = new MemoryStream(Convert.FromBase64String(encryptedDataKey));
             var decryptionResult = await mAmazonKeyManagementService.DecryptAsync(new DecryptRequest
             {
-                CiphertextBlob = new MemoryStream(Convert.FromBase64String(encryptedDataKey)),
+                CiphertextBlob = ciphertextStream,
                 KeyId = masterKeyAlias
-                
             });
 
-            var decrypted = RijndaelUtils.Decrypt(decryptionResult.Plaintext.ToArray(), iv, actualEncryptedData);
-
-            return Encoding.UTF8.GetString(decrypted);
-        }
-
-        private async Task<(MemoryStream dataKey, string encryptedDataKey)> GenerateEncryptionKey(string keyAlias)
-        {
-            GenerateDataKeyResponse generateKeyResponse = null;
+            using var plaintextStream = decryptionResult.Plaintext;
+            var plaintextBytes = plaintextStream.ToArray();
             try
             {
-                generateKeyResponse = await mAmazonKeyManagementService.GenerateDataKeyAsync(new GenerateDataKeyRequest { KeyId = keyAlias, KeySpec = "AES_256"});
+                var decrypted = RijndaelUtils.Decrypt(plaintextBytes, iv, actualEncryptedData);
+                return Encoding.UTF8.GetString(decrypted);
+            }
+            finally
+            {
+                // FIX: Clear sensitive data from memory
+                Array.Clear(plaintextBytes, 0, plaintextBytes.Length);
+                ClearStream(plaintextStream);
+            }
+        }
 
+        private async Task<(byte[] dataKey, string encryptedDataKey)> GenerateEncryptionKey(string keyAlias)
+        {
+            GenerateDataKeyResponse? generateKeyResponse = null;
+            try
+            {
+                generateKeyResponse = await mAmazonKeyManagementService.GenerateDataKeyAsync(
+                    new GenerateDataKeyRequest { KeyId = keyAlias, KeySpec = "AES_256" });
             }
             catch (NotFoundException)
             {
                 await GenerateMasterKey(keyAlias);
-                generateKeyResponse = await mAmazonKeyManagementService.GenerateDataKeyAsync(new GenerateDataKeyRequest { KeyId = keyAlias, KeySpec = "AES_256"});
+                generateKeyResponse = await mAmazonKeyManagementService.GenerateDataKeyAsync(
+                    new GenerateDataKeyRequest { KeyId = keyAlias, KeySpec = "AES_256" });
             }
 
-            if (generateKeyResponse.HttpStatusCode != HttpStatusCode.OK)
+            using var plaintextStream = generateKeyResponse.Plaintext;
+            using var encryptedStream = generateKeyResponse.CiphertextBlob;
+            try
             {
-                throw new Exception($"Couldn't generate encryption key for {keyAlias}");
-            }
+                if (generateKeyResponse.HttpStatusCode != HttpStatusCode.OK)
+                {
+                    throw new Exception($"Couldn't generate encryption key for {keyAlias}");
+                }
 
-            return (generateKeyResponse.Plaintext, ConvertMemoryStreamToBase64String(generateKeyResponse.CiphertextBlob));
+                var encryptedDataKey = ConvertMemoryStreamToBase64String(encryptedStream);
+                return (plaintextStream.ToArray(), encryptedDataKey);
+            }
+            finally
+            {
+                ClearStream(plaintextStream);
+            }
+        }
+
+        private static void ClearStream(MemoryStream? stream)
+        {
+            if (stream == null) return;
+            if (stream.TryGetBuffer(out var buffer))
+            {
+                Array.Clear(buffer.Array!, buffer.Offset, buffer.Count);
+            }
+            else if (stream.CanWrite)
+            {
+                stream.Position = 0;
+                var zeros = new byte[256];
+                while (stream.Position < stream.Length)
+                    stream.Write(zeros, 0, (int)Math.Min(zeros.Length, stream.Length - stream.Position));
+            }
         }
 
         private static string ConvertMemoryStreamToBase64String(MemoryStream ms)
@@ -97,8 +144,8 @@ namespace Kamus.KeyManagement
 
             await Policy
                 .Handle<NotFoundException>()
-                .WaitAndRetry(3, attempt => TimeSpan.FromSeconds(0.5 * attempt))
-                .Execute(async () =>
+                .WaitAndRetryAsync(3, attempt => TimeSpan.FromSeconds(0.5 * attempt))
+                .ExecuteAsync(async () =>
                     await mAmazonKeyManagementService.CreateAliasAsync(keyAlias, createKeyResponse.KeyMetadata.KeyId));
 
         }
