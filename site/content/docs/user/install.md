@@ -7,6 +7,8 @@ menu:
     weight: 2
 ---
 
+<!-- Modified in 2026 by Sasiru382. These independently authored changes are documented in Git history. -->
+
 # Installing Kamus
 Kamus has an official helm chart, using it is the simplest way to install Kamus:
 ```

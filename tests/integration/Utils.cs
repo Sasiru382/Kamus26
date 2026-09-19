@@ -1,3 +1,4 @@
+// Modified in 2026 by Sasiru382. These independently authored changes are documented in Git history.
 using System;
 using Azure.Core;
 using Azure.Identity;

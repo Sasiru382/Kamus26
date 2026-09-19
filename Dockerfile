@@ -1,3 +1,4 @@
+# Modified in 2026 by Sasiru382. These independently authored changes are documented in Git history.
 # Build either API with --build-arg PROJECT_NAME=encrypt-api or decrypt-api.
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build-env
 
