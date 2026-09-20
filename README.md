@@ -4,6 +4,7 @@
 
 ![logo](images/logo.png)  
 # Kamus
+<!-- Modified in 2026 by Sasiru382. These independently authored changes are documented in Git history. -->
 An open source, GitOps, zero-trust secrets encryption and decryption solution for Kubernetes applications.
 Kamus enable users to easily encrypt secrets than can be decrypted only by the application running on Kubernetes.
 The encryption is done using strong encryption providers (currently supported: Azure KeyVault, Google Cloud KMS and AES).
@@ -31,7 +32,8 @@ kamus-cli encrypt --secret super-secret --service-account kamus-example-sa --nam
 
 Pass the value returned by the CLI to your pod, and use Kamus Decrypt API to decrypt the value.
 The simplest way to achieve that is by using the init container.
-An alternative is to use Kamus decrypt API directly in the application code.
+For .NET 8+ applications, use the standalone [Kamus.Decryption library](src/Kamus.Decryption/README.md)
+to call the decrypt API from application code. It supports dependency injection and service-account token rotation.
 To make it clearer, take a look on a working [example app](example/README.md).
 You can deploy this app to any Kubernetes cluster that has Kamus installed, to understand how it works.
 
@@ -54,10 +56,16 @@ We look forward to add support for other cloud encryption backends.
 Consult the [installation guide](https://kamus.soluto.io/docs/user/install) for more details on how to deploy Kamus using the relevant KMS.
 
 ### Utilities
-Kamus is shipped with 2 utilities that make it easier to use:
+Kamus is shipped with 3 utilities that make it easier to use:
 * Kamus CLI - a small CLI that eases the interaction with the Encrypt API. Refer to the [docs](https://github.com/Soluto/kamus/blob/master/cli/README.md) for more details.
 * Kamus init container - a init container that interacts with the Decrypt API. Refer to the [docs](https://github.com/Soluto/kamus/blob/master/init-container/README.md) for more details.
-* CRD Controller - allowing to create native Kubernetes secrets using Kamus. Refer to the [docs](https://kamus.soluto.io/docs/user/crd/) for more details.
+* [Kamus.Decryption](src/Kamus.Decryption/README.md) - a standalone NuGet library for decryption inside .NET applications.
+
+This branch no longer includes the Kamus CRD controller or support for reconciling `KamusSecret`
+resources into Kubernetes Secrets. Existing installations must migrate workloads that rely on
+that feature before removing their deployed controller. This code change does not uninstall
+anything from a cluster. Upstream Helm charts are separate projects; configure them to disable
+the controller and use this branch's API images when deploying this version.
 
 ## Users
 * [1 Giant Leap Solutions](https://1giantleap.nl/)

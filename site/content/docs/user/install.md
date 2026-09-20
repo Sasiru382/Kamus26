@@ -10,6 +10,12 @@ menu:
 <!-- Modified in 2026 by Sasiru382. These independently authored changes are documented in Git history. -->
 
 # Installing Kamus
+This branch deploys the encryptor and decryptor APIs. It no longer includes the CRD controller.
+If you use an upstream Helm chart, disable its controller and configure the API images built
+from this branch; the upstream chart does not automatically deploy these changes.
+Migrate any workloads relying on generated Kubernetes Secrets before removing an existing controller.
+For application-side decryption, see the [.NET client guide](/docs/user/dotnet-client/).
+
 Kamus has an official helm chart, using it is the simplest way to install Kamus:
 ```
 helm repo add soluto https://charts.soluto.io

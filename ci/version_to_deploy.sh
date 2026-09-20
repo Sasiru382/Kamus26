@@ -1,4 +1,5 @@
 #!/bin/bash
+# Modified in 2026 by Sasiru382. These independently authored changes are documented in Git history.
 
 echo checking decryptor api version
 DECRYPTOR_API_VERSION=$(grep -E "<Version>" ./src/decrypt-api/decrypt-api.csproj | grep -Eo "[0-9.]*(-rc[0-9]*)?")
@@ -20,18 +21,7 @@ if [[ "$(git tag | grep -c "$ENCRYPTOR_API_TAG")" == "0" ]]; then
     export ENCRYPTOR_API_DOCKER_TAG=$ENCRYPTOR_API_TAG
 fi
 
-echo checking controller api version
-CONTROLLER_API_VERSION=$(grep -E "<Version>" ./src/crd-controller/crd-controller.csproj | grep -Eo "[0-9.]*(-rc[0-9]*)?")
-CONTROLLER_API_TAG="controller-$CONTROLLER_API_VERSION"
-export CONTROLLER_API_DOCKER_TAG="controller-latest"
-if [[ "$(git tag | grep -c "$CONTROLLER_API_TAG")" == "0" ]]; then
-    echo tagging "$CONTROLLER_API_TAG"
-    git tag "$CONTROLLER_API_TAG"
-    export CONTROLLER_API_DOCKER_TAG=$CONTROLLER_API_TAG
-fi
-
 {
     echo "export DECRYPTOR_API_DOCKER_TAG=$DECRYPTOR_API_DOCKER_TAG"
     echo "export ENCRYPTOR_API_DOCKER_TAG=$ENCRYPTOR_API_DOCKER_TAG"
-    echo "export CONTROLLER_API_DOCKER_TAG=$CONTROLLER_API_DOCKER_TAG"
 } >> "$BASH_ENV"

@@ -1,4 +1,5 @@
 # Deny Kuberentes secrets view permissions
+<!-- Modified in 2026 by Sasiru382. These independently authored changes are documented in Git history. -->
 
 Feature: Deny Kuberentes secrets view permissions
   In order to protect Kamus from DoS
@@ -15,7 +16,6 @@ Feature: Deny Kuberentes secrets view permissions
 
 * Mitigates: 
  * [Impersonating pod to decrypt it's secrets](/docs/threatmodeling/threats/decryption/pod_impersonation)
- * [Using KamusSecret to decrypt secrets](/docs/threatmodeling/threats/decryption/leveraging_crd)
 * References:
  * https://kubernetes.io/docs/reference/access-authn-authz/rbac/
 

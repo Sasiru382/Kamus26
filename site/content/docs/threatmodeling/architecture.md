@@ -8,12 +8,12 @@ menu:
 ---
 
 # Kamus Architecture
-Kamus consist from 4 components:
+<!-- Modified in 2026 by Sasiru382. These independently authored changes are documented in Git history. -->
+Kamus consists of 3 components:
 
 * Encrypt API - handling encryption
 * Decrypt API - handling decryption, should not be exposed externally
 * KMS - Handling the encryption using various providers.
-* Controller - Responsible for interavtion with Kubernetes API, currently only for CRUD operations on KamusSecrets objects.
 
 ## First flow - using the Init Container
 
@@ -33,10 +33,16 @@ We have multiple objects here:
 The application consume the configuration file with the decrypted secrets from the shared volume.
 * A [service account], used by the init container to authenticate to Kamus decryptor.
 
-## Second flow - using KamusSecret
+## Second flow - using the .NET client
 
-High-level overview of encryption/decryption flow:
-<img src="/docs/threatmodeling/images/diagram-crd.png"/>
+The application calls `IKamusDecryptorClient.DecryptAsync` with an encrypted value.
+The client reads the pod's service-account token and sends it to the decrypt API.
+The API verifies the token with Kubernetes and uses the authenticated namespace and
+service-account identity to decrypt through the KMS. Plaintext returns to application memory.
+The application needs network access to the decrypt API and an appropriate mounted token.
+It does not require direct KMS access, an init container, or a native Kubernetes Secret.
+
+See the [.NET client guide](/docs/user/dotnet-client/) for setup and token requirements.
 
 Kubernetes Icons created by [Kubernetes Community]
 

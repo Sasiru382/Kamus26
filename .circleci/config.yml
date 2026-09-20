@@ -1,24 +1,6 @@
+# Modified in 2026 by Sasiru382. These independently authored changes are documented in Git history.
 version: 2.1
 
-commands:
-  test_crd_command:
-    description: "Testing CRD controller on Kubernetes cluster with the specified version"
-    parameters:
-      kubernetesVersion:
-        type: string
-        default: "1.14"
-    steps:
-      - checkout
-      - restore_cache:
-          keys: 
-            - docker_api_cache_key-{{ .Revision }}
-      - run:
-          name: install
-          environment:
-            kubernetesVersion: parameters.kubernetesVersion
-          command: |
-            tests/crd-controller/run-tests.sh << parameters.kubernetesVersion >>
-          no_output_timeout: 1h
 jobs:
   test_cli:
     docker:
@@ -46,15 +28,11 @@ jobs:
           name: Build encryptor docker image
           command: docker build . -t kamus-encryptor --build-arg PROJECT_NAME=encrypt-api --label org.opencontainers.image.source=$CIRCLE_REPOSITORY_URL
       - run:
-          name: Build CRD controller docker image
-          command: docker build . -t crd-controller --build-arg PROJECT_NAME=crd-controller --label org.opencontainers.image.source=$CIRCLE_REPOSITORY_URL
-      - run:
           name: Save docker image
           command: |
             mkdir -p docker-cache-api
             docker save -o docker-cache-api/kamus-decryptor.tar kamus-decryptor
             docker save -o docker-cache-api/kamus-encryptor.tar kamus-encryptor
-            docker save -o docker-cache-api/crd-controller.tar crd-controller
       - save_cache:
           key: docker_api_cache_key-{{ .Revision }}
           paths:
@@ -87,27 +65,9 @@ jobs:
           path: tests/blackbox/compose/reports/
           destination: zap-reports
 
-  test_crd_1_18:
-    machine: true
-    steps:
-      - test_crd_command:
-          kubernetesVersion: "v1.18.15"
-
-  test_crd_1_19:
-    machine: true
-    steps:
-      - test_crd_command:
-          kubernetesVersion: "v1.19.7"
-
-  test_crd_1_20:
-    machine: true
-    steps:
-      - test_crd_command:
-          kubernetesVersion: "v1.20.2"
-
   run_tests:
     docker:
-      - image: mcr.microsoft.com/dotnet/core/sdk:3.1
+      - image: mcr.microsoft.com/dotnet/sdk:8.0
 
     steps:
       - checkout
@@ -115,6 +75,14 @@ jobs:
           name: Run unit tests
           working_directory: "tests/unit"
           command: dotnet test
+      - run:
+          name: Test standalone decryption client
+          command: dotnet test tests/Kamus.Decryption.Tests/Kamus.Decryption.Tests.csproj
+      - run:
+          name: Pack standalone decryption client
+          command: dotnet pack src/Kamus.Decryption/Kamus.Decryption.csproj -c Release -o nupkg
+      - store_artifacts:
+          path: nupkg
       - run:
           name: Run integration
           working_directory: "tests/integration"
@@ -135,7 +103,6 @@ jobs:
             shellcheck -x ci/version_to_deploy.sh
             shellcheck -x ci/version_to_deploy_init.sh
             shellcheck -x ci/version_to_deploy_cli_docker.sh
-            shellcheck -x tests/crd-controller/run-tests.sh
 
   push-api-images:
     docker:
@@ -164,10 +131,8 @@ jobs:
           command: |
             docker load < docker-cache-api/kamus-decryptor.tar
             docker load < docker-cache-api/kamus-encryptor.tar
-            docker load < docker-cache-api/crd-controller.tar
             docker tag kamus-decryptor ghcr.io/soluto/kamus:$DECRYPTOR_API_DOCKER_TAG
             docker tag kamus-encryptor ghcr.io/soluto/kamus:$ENCRYPTOR_API_DOCKER_TAG
-            docker tag crd-controller ghcr.io/soluto/kamus:$CONTROLLER_API_DOCKER_TAG
       - run:
           name: Docker push version
           working_directory: "init-container/tests"
@@ -175,7 +140,6 @@ jobs:
             docker login ghcr.io -u $GHCR_USERNAME -p $GHCR_PASSWORD 
             docker push ghcr.io/soluto/kamus:$DECRYPTOR_API_DOCKER_TAG
             docker push ghcr.io/soluto/kamus:$ENCRYPTOR_API_DOCKER_TAG
-            docker push ghcr.io/soluto/kamus:$CONTROLLER_API_DOCKER_TAG
       - run:
           name: Docker push latest
           working_directory: "init-container/tests"
@@ -183,11 +147,9 @@ jobs:
             docker login ghcr.io -u $GHCR_USERNAME -p $GHCR_PASSWORD 
             docker tag ghcr.io/soluto/kamus:$DECRYPTOR_API_DOCKER_TAG ghcr.io/soluto/kamus:decryptor-latest
             docker tag ghcr.io/soluto/kamus:$ENCRYPTOR_API_DOCKER_TAG ghcr.io/soluto/kamus:encryptor-latest
-            docker tag ghcr.io/soluto/kamus:$CONTROLLER_API_DOCKER_TAG ghcr.io/soluto/kamus:controller-latest
 
             docker push ghcr.io/soluto/kamus:decryptor-latest
             docker push ghcr.io/soluto/kamus:encryptor-latest
-            docker push ghcr.io/soluto/kamus:controller-latest
       - run:
           name: push tags
           command: |
@@ -362,27 +324,12 @@ workflows:
           requires:
             - build_api
             - lint-scripts
-      - test_crd_1_18:
-          requires:
-            - build_api
-            - lint-scripts
-      - test_crd_1_19:
-          requires:
-            - build_api
-            - lint-scripts
-      - test_crd_1_20:
-          requires:
-            - build_api
-            - lint-scripts
       - push-api-images:
           requires:
             - lint-scripts
             - build_api
             - run_tests
             - test_blackbox
-            - test_crd_1_18
-            - test_crd_1_19
-            - test_crd_1_20
           filters:
             branches:
               only: master

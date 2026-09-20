@@ -8,6 +8,7 @@ menu:
 ---
 
 # Threats and Controls
+<!-- Modified in 2026 by Sasiru382. These independently authored changes are documented in Git history. -->
 This page document the output of Kamus threat model, by listing all the different threats and mitigations that we discussed.
 
 ## Threats
@@ -15,7 +16,6 @@ This page document the output of Kamus threat model, by listing all the differen
 
 * [Impersonating pod to decrypt it's secrets](/docs/threatmodeling/threats/decryption/pod_impersonation)
 * [Sniff requests and responses to Kamus](/docs/threatmodeling/threats/decryption/sniffing_tampering)
-* [Using KamusSecret to decrypt secrets](/docs/threatmodeling/threats/decryption/leveraging_crd)
 
 ### Encryption
 * [Kamus server disrupting](/docs/threatmodeling/threats/encryption/denial_of_service)
