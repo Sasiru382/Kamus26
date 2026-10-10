@@ -1,17 +1,32 @@
-[![Helm Package](https://img.shields.io/badge/helm-latest-blue.svg)](https://hub.helm.sh/charts/soluto/kamus) 
-[![Slack](https://img.shields.io/badge/slack-kamus-orange.svg)](https://join.slack.com/t/k8s-kamus/shared_invite/enQtODA2MjI3MjAzMjA1LThlODkxNTg3ZGVmMjVkOTBhY2RmMmRjOWFiOGU2NzQ1ODU4ODNiMDJiZTE5ZTY4YmRiOTM3MjI0MDc0OGFkN2E)
-[![Twitter](https://img.shields.io/twitter/follow/solutoeng.svg?label=Follow&style=popout)](https://twitter.com/intent/tweet?text=Checkout%20Kamus%20secret%20encryption%20for%20Kubernetes&url=https://github.com/Soluto/kamus&via=SolutoEng&hashtags=kubernetes,devops,devsecops) [![CircleCI](https://circleci.com/gh/Soluto/kamus.svg?style=svg)](https://circleci.com/gh/Soluto/kamus)
+# Kamus26
+<!-- Modified in 2026 by Sasiru382. Changes are documented in Git history. -->
 
-![logo](images/logo.png)  
-# Kamus
-<!-- Modified in 2026 by Sasiru382. These independently authored changes are documented in Git history. -->
-An open source, GitOps, zero-trust secrets encryption and decryption solution for Kubernetes applications.
+Kamus26 is an independently maintained derivative of [Soluto/Kamus](https://github.com/Soluto/kamus),
+an open source, GitOps, zero-trust secrets encryption and decryption solution for Kubernetes applications.
+This repository is maintained by [Sasiru382](https://github.com/Sasiru382); it is not an official
+Soluto release and is not affiliated with or endorsed by Soluto. References to upstream projects,
+packages, and documentation identify their origin, not an endorsement of Kamus26.
+
+## Origin and licence
+
+The original Kamus project is copyright 2019 Soluto and licensed under the
+[Apache License 2.0](LICENSE). Kamus26 retains the upstream licence and attribution;
+modified upstream files carry change notices. The original project and its contributors
+retain credit for their work. This derivative is distributed under Apache 2.0.
+
+Changes in this derivative include resilient Azure Key Vault support and a standalone
+.NET decryption client. The upstream CRD controller has been removed. See the
+[commit history](https://github.com/Sasiru382/Kamus26/commits/main/) for the changes.
+
+## Overview
 Kamus enable users to easily encrypt secrets than can be decrypted only by the application running on Kubernetes.
 The encryption is done using strong encryption providers (currently supported: Azure KeyVault, Google Cloud KMS and AES).
 To learn more about Kamus, check out the [blog post](https://blog.solutotlv.com/can-kubernetes-keep-a-secret?utm_source=github) and [slides](https://www.slideshare.net/SolutoTLV/can-kubernetes-keep-a-secret).
 ## Getting Started
 
-The simple way to run Kamus is by using the Helm chart:
+The following commands install **upstream Kamus**, not Kamus26. To deploy this derivative,
+configure the upstream chart to use your own Kamus26 images and disable the CRD controller,
+as described below. The upstream chart is available with:
 ```
 helm repo add soluto https://charts.soluto.io
 helm upgrade --install kamus soluto/kamus
@@ -37,7 +52,8 @@ to call the decrypt API from application code. It supports dependency injection 
 To make it clearer, take a look on a working [example app](example/README.md).
 You can deploy this app to any Kubernetes cluster that has Kamus installed, to understand how it works.
 
-Have a question? Something is not clear? Reach out to us on [Kamus Slack](https://join.slack.com/t/k8s-kamus/shared_invite/enQtODA2MjI3MjAzMjA1LThlODkxNTg3ZGVmMjVkOTBhY2RmMmRjOWFiOGU2NzQ1ODU4ODNiMDJiZTE5ZTY4YmRiOTM3MjI0MDc0OGFkN2E)!
+For questions about Kamus26, use this repository's [issue tracker](https://github.com/Sasiru382/Kamus26/issues).
+The original Kamus documentation and community resources describe the upstream project.
 
 ## Architecture
 Kamus has 3 components:
@@ -67,20 +83,22 @@ that feature before removing their deployed controller. This code change does no
 anything from a cluster. Upstream Helm charts are separate projects; configure them to disable
 the controller and use this branch's API images when deploying this version.
 
-## Users
+## Upstream users
 * [1 Giant Leap Solutions](https://1giantleap.nl/)
 * [UK Hydrographic Office](https://www.ukho.gov.uk/)
 
-Using Kamus? Open a PR and add your company name here!
+These organisations are listed in the upstream Kamus README; this is not a claim that they use or endorse Kamus26.
 
 ## Security
-We take security seriously at Soluto.
-To learn more about the security aspects of Kamus refer to the Threat Modeling docs containing all the various threats and mitigations we discussed.
+The inherited [threat-model documentation](site/content/docs/threatmodeling/) describes
+upstream Kamus security considerations. It is not a security certification of Kamus26.
 Before installing Kamus in production refer to the installation guide to learn the best practices of deploying Kamus securely.
-In case you find a security issue or have something you would like to discuss refer to our [security.md](security.md) policy.
+The inherited [security.md](security.md) policy lists Soluto's upstream reporting address;
+it is not a Kamus26 support contact. For a Kamus26-specific vulnerability, contact
+the maintainer privately before disclosing details. Do not post credentials or
+vulnerability details in a public issue.
 
 ## Contributing
-Found a bug? Have a missing feature? Please open an issue and let us know.
-We would like to help you use Kamus!
-Please notice: Do not report security issues on GitHub.
-We will immediately delete such issues.
+Kamus26-specific bug reports and contributions belong in
+[this repository](https://github.com/Sasiru382/Kamus26), not the upstream issue tracker.
+Please do not report security vulnerabilities in public GitHub issues.
